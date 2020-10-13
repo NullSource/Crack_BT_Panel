@@ -40,7 +40,7 @@ if [ "$go" = 'n' ];then
 fi
 
 #检查系统信息
-if [ -f /etc/redhat-release ];then
+if [ -f /etc/redhat-release ] && [[ `grep -i 'centos' /etc/redhat-release` ]]; then
     OS='CentOS'
 elif [ ! -z "`cat /etc/issue | grep bian`" ];then
     OS='Debian'
@@ -90,13 +90,13 @@ install_python_for_CentOS7() {
 }
 
 install_btPanel_for_CentOS() {
-    yum install -y wget && wget -O install.sh https://raw.githubusercontent.com/leitbogioro/Crack_BT_Panel/master/install.sh && sh install.sh
-    wget -O update.sh https://raw.githubusercontent.com/leitbogioro/Crack_BT_Panel/master/update_pro.sh && bash update.sh pro
+    yum install -y wget && wget -O install.sh https://git.io/fj0zQ && bash install.sh
+    wget -O update.sh https://git.io/fj0zD && bash update.sh pro
 }
 
 install_btPanel_for_APT() {
-    wget -O install.sh https://raw.githubusercontent.com/leitbogioro/Crack_BT_Panel/master/install-ubuntu.sh && sudo bash install.sh
-    wget -O update.sh https://raw.githubusercontent.com/leitbogioro/Crack_BT_Panel/master/update_pro.sh && bash update.sh pro
+    wget -O install.sh https://git.io/fj0z5 && bash install.sh
+    wget -O update.sh https://git.io/fj0zD && bash update.sh pro
 }
 
 #破解步骤
@@ -114,8 +114,17 @@ execute_bt_panel() {
     if ! grep '/etc/init.d/bt restart' /etc/crontab; then
         systemctl enable cron.service
         systemctl start cron.service
-        echo "0  0    * * *   root    /etc/init.d/bt restart" >> /etc/crontab
+        echo "0  0    * * 0   root    /etc/init.d/bt restart" >> /etc/crontab
         /etc/init.d/cron restart
+    fi
+}
+
+#开启 ssl
+enable_ssl(){
+    if [ ! -f /www/server/panel/data/ssl.pl ]; then
+        echo "Ture" > /www/server/panel/data/ssl.pl
+        /usr/bin/python /usr/local/bin/pip install pyOpenSSL==16.2
+        /etc/init.d/bt restart
     fi
 }
 
@@ -123,6 +132,37 @@ execute_bt_panel() {
 clean_up() {
     rm -rf crack_bt_panel_pro.sh
     rm -rf update.sh
+    if [[ ${OS} == 'Ubuntu' ]] || [[ ${OS} == 'Debian' ]]; then
+        apt-get autoremove -y
+    fi
+    # 删除各类残留
+    rm -rf /www/server/panel/plugin/btyw /root/install_cjson.sh /root/.pip /root/.pydistutils.cfg
+}
+
+# 预安装组件
+components(){
+    cd /root
+    wget -O lib.sh https://git.io/fjmak
+    mv lib.sh /www/server/panel/install
+    wget -O nginx.sh https://git.io/fj0O9
+    mv nginx.sh /www/server/panel/install
+    if [ -f /www/server/panel/install/install_soft.sh ]; then
+        rm -rf install_soft.sh
+        wget -O install_soft.sh https://git.io/fj03A
+        mv install_soft.sh /www/server/panel/install
+    fi
+}
+
+# 插件配置
+vip_plugin(){
+    # 默认安装所有付费高级插件
+    cd /www/server/panel/plugin
+    if [ ! -d "/masterslave" ]; then
+        wget -O vip_plugin.zip https://git.io/fj0VQ
+        unzip vip_plugin.zip
+        rm -f vip_plugin.zip
+    fi
+    cd /root
 }
 
 #正式安装
@@ -133,6 +173,8 @@ if [[ ${OS} == 'CentOS' ]] && [[ ${CentOS_Version} -eq "7" ]]; then
     install_btPanel_for_CentOS
     install_python_for_CentOS7
     crack_bt_panel
+    #enable_ssl
+    #vip_plugin
 elif [[ ${OS} == 'CentOS' ]] && [[ ${CentOS_Version} -eq "6" ]]; then
     yum install epel-release wget curl nss fail2ban unzip lrzsz vim* -y
     yum update -y
@@ -140,16 +182,21 @@ elif [[ ${OS} == 'CentOS' ]] && [[ ${CentOS_Version} -eq "6" ]]; then
     install_btPanel_for_CentOS
     install_python_for_CentOS6
     crack_bt_panel
+    #enable_ssl
+    #vip_plugin
 elif [[ ${OS} == 'Ubuntu' ]] || [[ ${OS} == 'Debian' ]]; then
     apt-get update
-    apt-get install vim vim-gnome lrzsz fail2ban wget curl unrar unzip cron -y
+    apt-get install ca-certificates -y
+    apt-get install sudo apt-transport-https vim vim-gnome libnet-ifconfig-wrapper-perl socat vim vim-gnome vim-gtk libnet-ifconfig-wrapper-perl socat lrzsz fail2ban wget curl unrar unzip cron dnsutils net-tools git git-svn make cmake gdb tig -y
     install_btPanel_for_APT
     crack_bt_panel
-    execute_bt_panel
+    components
+    #enable_ssl
+    #vip_plugin
+    execute_bt_panel    
 fi
 
 clean_up
 
 echo -e "${green}[完成] ${plain}宝塔面板破解版已安装成功！"
 echo "按脚本提供的后台入口、账号、密码，登录宝塔面板并使用！"
-
